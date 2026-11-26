@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nebula – Grimoire personnel</title>
+  <!-- Application installable (PWA) -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#2f2822">
+  <link rel="icon" href="icones/icone.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icones/icone-192.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="app">
+
+    <!-- ===== Menu latéral permanent ===== -->
+    <aside class="sidebar">
+      <button class="logo" id="logo" title="Accueil">
+        <svg viewBox="0 0 40 40" class="logo-svg" aria-hidden="true">
+          <path d="M26 6a14 14 0 1 0 8 25A12 12 0 0 1 26 6z" fill="#e3c9a8"/>
+          <path d="M30 10l1.2 3 3 1.2-3 1.2-1.2 3-1.2-3-3-1.2 3-1.2z" fill="#b5cfa8"/>
+        </svg>
+        <span class="logo-texte">
+          <strong>Nebula</strong>
+          <small>Grimoire personnel</small>
+        </span>
+      </button>
+
+      <!-- Construit par app.js (rubriques, sous-rubriques, compteurs) -->
+      <nav id="menu" class="menu"></nav>
+
+      <!-- Sauvegarde et installation (sauvegarde.js) -->
+      <div class="sidebar-pied">
+        <button type="button" id="btn-installer" class="pied-btn pied-installer" hidden>Installer l'app</button>
+        <div class="pied-actions">
+          <button type="button" id="btn-exporter" class="pied-btn" title="Télécharger toute la base dans un fichier .json">Exporter</button>
+          <button type="button" id="btn-importer" class="pied-btn" title="Remplacer la base par celle d'un fichier .json">Importer</button>
+        </div>
+        <input type="file" id="input-import" accept=".json,application/json" hidden>
+        <p id="etat-stockage">Données enregistrées sur cet appareil</p>
+      </div>
+    </aside>
+
+    <!-- ===== Zone principale ===== -->
+    <div class="principal">
+      <header class="topbar">
+        <div class="recherche">
+          <svg viewBox="0 0 24 24" class="icone recherche-icone" aria-hidden="true">
+            <circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>
+          </svg>
+          <input type="search" id="recherche" autocomplete="off"
+                 placeholder="Rechercher un rituel, un élément, un tag… (ex. amour)">
+          <kbd class="raccourci">Ctrl K</kbd>
+        </div>
+
+        <!-- Lune du jour (lune.js) : toujours visible, ouvre le panneau des correspondances -->
+        <button type="button" id="btn-lune" class="btn-lune" aria-expanded="false"
+                aria-controls="panneau-lune"></button>
+        <div id="panneau-lune" class="panneau-lune" role="dialog" aria-label="Lune du jour" hidden></div>
+      </header>
+
+      <!-- Chaque « vue » (liste, fiche, résultats…) est dessinée ici par le JavaScript -->
+      <main id="vue"></main>
+    </div>
+  </div>
+
+  <!-- ===== Fenêtre : Ajouter / Modifier un élément ===== -->
+  <dialog id="dialogue-element" class="dialogue">
+    <form id="form-element" novalidate>
+      <h2 id="titre-dialogue">Nouvel élément</h2>
+
+      <div class="champ-photo">
+        <div id="apercu-photo" class="apercu-photo"></div>
+        <div class="champ-photo-actions">
+          <label for="input-photo" class="btn btn-discret">Choisir une photo…</label>
+          <input type="file" id="input-photo" accept="image/*" hidden>
+          <button type="button" id="btn-retirer-photo" class="btn btn-discret">Retirer la photo</button>
+          <small>Sans photo, une illustration est utilisée.</small>
+        </div>
+      </div>
+
+      <div class="grille-2">
+        <label>Nom *
+          <input name="nom" autocomplete="off">
+        </label>
+        <label>Catégorie
+          <select name="categorieId"></select>
+        </label>
+      </div>
+
+      <label>Tags <small>séparés par des virgules</small>
+        <input name="tags" placeholder="amour, protection, douceur" autocomplete="off">
+      </label>
+      <div id="apercu-tags" class="tags"></div>
+
+      <label>Description
+        <textarea name="description" rows="4"></textarea>
+      </label>
+
+      <!-- Champs propres à la catégorie (ex. Précautions pour les huiles) -->
+      <div id="champs-specifiques"></div>
+
+      <label>Sources <small>une par ligne</small>
+        <textarea name="sources" rows="3" placeholder="https://…"></textarea>
+      </label>
+
+      <label>Notes personnelles
+        <textarea name="notes" rows="3"></textarea>
+      </label>
+
+      <p id="erreur-element" class="erreur"></p>
+
+      <div class="actions">
+        <button type="button" id="btn-supprimer-element" class="btn btn-danger">Supprimer</button>
+        <span class="espace"></span>
+        <button type="button" id="btn-annuler-element" class="btn">Annuler</button>
+        <button type="submit" class="btn btn-principal">Enregistrer</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ===== Fenêtre : Ajouter / Modifier un rituel OU une recette (fiches.js) ===== -->
+  <dialog id="dialogue-rituel" class="dialogue dialogue-large">
+    <form id="form-rituel" novalidate>
+      <h2 id="titre-dialogue-rituel">Nouveau rituel</h2>
+
+      <label>Nom *
+        <input name="nom" autocomplete="off">
+      </label>
+
+      <label>Mots-clés <small>séparés par des virgules</small>
+        <input name="motsCles" placeholder="amour, purification…" autocomplete="off">
+      </label>
+      <div id="apercu-mots-cles" class="tags"></div>
+
+      <!-- « Description / objectif » (rituel) ou « Utilisation » (recette) -->
+      <label><span id="libelle-texte-fiche">Description / objectif</span>
+        <textarea name="texte" rows="3"></textarea>
+      </label>
+
+      <fieldset class="ingredients">
+        <legend>Ingrédients <small>liés à l'inventaire</small></legend>
+        <div id="liste-ingredients"></div>
+        <button type="button" id="btn-ajouter-ingredient" class="btn btn-discret">+ Ajouter un ingrédient</button>
+      </fieldset>
+
+      <label>Étapes <small>une par ligne</small>
+        <textarea name="etapes" rows="7"></textarea>
+      </label>
+
+      <label>Notes
+        <textarea name="notes" rows="3"></textarea>
+      </label>
+
+      <label>Sources <small>une par ligne</small>
+        <textarea name="sources" rows="2" placeholder="https://…"></textarea>
+      </label>
+
+      <p id="erreur-rituel" class="erreur"></p>
+
+      <div class="actions">
+        <button type="button" id="btn-supprimer-rituel" class="btn btn-danger">Supprimer</button>
+        <span class="espace"></span>
+        <button type="button" id="btn-annuler-rituel" class="btn">Annuler</button>
+        <button type="submit" class="btn btn-principal">Enregistrer</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Ordre important : chaque fichier utilise les fonctions des précédents -->
+  <script src="js/db.js"></script>
+  <script src="js/outils.js"></script>
+  <script src="js/illustrations.js"></script>
+  <script src="js/donnees-exemple.js"></script>
+  <script src="js/elements.js"></script>
+  <script src="js/fiches.js"></script>
+  <script src="js/recherche.js"></script>
+  <script src="js/lune.js"></script>
+  <script src="js/sauvegarde.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

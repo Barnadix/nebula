@@ -1,0 +1,18 @@
+{
+  "name": "Nebula – Grimoire personnel",
+  "short_name": "Nebula",
+  "description": "Rituels, recettes et inventaire ésotérique (pierres, huiles, plantes, couleurs).",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#3a3129",
+  "theme_color": "#2f2822",
+  "icons": [
+    { "src": "icones/icone-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icones/icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icones/icone-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icones/icone.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
