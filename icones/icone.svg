@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Icône de Nebula : fond brun, croissant de lune sable, étincelle sauge
+       (même dessin que les PNG générés) -->
+  <defs>
+    <mask id="croissant">
+      <rect width="512" height="512" fill="#fff"/>
+      <circle cx="332" cy="208" r="128" fill="#000"/>
+    </mask>
+  </defs>
+  <rect width="512" height="512" fill="#3a3129"/>
+  <circle cx="256" cy="256" r="196" fill="#463b32"/>
+  <circle cx="266" cy="270" r="150" fill="#e3c9a8" mask="url(#croissant)"/>
+  <path d="M344 150l13 32 32 13-32 13-13 32-13-32-32-13 32-13z" fill="#b5cfa8"/>
+</svg>
