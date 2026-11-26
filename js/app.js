@@ -109,8 +109,18 @@ function lireOrdreGroupes() {
   return ORDRE_GROUPES_DEFAUT;
 }
 
-function enregistrerOrdreGroupes(cles) {
-  try { localStorage.setItem(CLE_ORDRE_GROUPES, JSON.stringify(cles)); } catch { /* ignoré */ }
+// date : moment du changement (pour la synchronisation). Par défaut « maintenant »,
+// et on prévient la synchro ; la synchro elle-même passe la date reçue de GitHub.
+function enregistrerOrdreGroupes(cles, date = null) {
+  try {
+    localStorage.setItem(CLE_ORDRE_GROUPES, JSON.stringify(cles));
+    localStorage.setItem(CLE_ORDRE_GROUPES + ".date", String(date ?? Date.now()));
+  } catch { /* ignoré */ }
+  if (date === null) signalerModification();
+}
+
+function lireDateOrdreGroupes() {
+  try { return Number(localStorage.getItem(CLE_ORDRE_GROUPES + ".date")) || 0; } catch { return 0; }
 }
 
 async function enregistrerOrdreCategories(ids) {
@@ -388,6 +398,7 @@ async function demarrer() {
 
   await naviguer("rituels");
   preparerAppHorsLigne(); // sauvegarde.js : service worker + stockage persistant
+  demarrerSynchro();      // synchro.js : récupère les nouveautés de l'autre appareil
 }
 
 demarrer();

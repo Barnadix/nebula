@@ -357,10 +357,12 @@ async function importerExemples() {
           (Array.isArray(complete[cle]) && complete[cle].length === 0);
         if (cle !== "id" && vide) complete[cle] = valeur;
       }
-      await enregistrer("objets", complete);
+      await enregistrer("objets", complete, { dater: false });
       correspondance[exemple.id] = deja.id;
     } else {
-      await enregistrer("objets", exemple);
+      // dater: false → l'exemple compte comme « très ancien » : sur un nouvel
+      // appareil, il ne remplacera jamais une fiche modifiée sur un autre.
+      await enregistrer("objets", exemple, { dater: false });
       correspondance[exemple.id] = exemple.id;
     }
   }
@@ -371,7 +373,7 @@ async function importerExemples() {
     await enregistrer("rituels", {
       ...rituel,
       ingredients: rituel.ingredients.map((i) => ({ ...i, objetId: correspondance[i.objetId] ?? i.objetId })),
-    });
+    }, { dater: false });
   }
 
   try { localStorage.setItem(CLE_EXEMPLES, new Date().toISOString()); } catch { /* ignoré */ }

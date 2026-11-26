@@ -33,6 +33,7 @@ const FICHIERS = [
   "js/recherche.js",
   "js/lune.js",
   "js/sauvegarde.js",
+  "js/synchro.js",
   "js/app.js",
   "icones/icone.svg",
   "icones/icone-192.png",

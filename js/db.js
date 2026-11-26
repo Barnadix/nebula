@@ -7,10 +7,18 @@
 //   - objets     : les fiches de la base de données
 //   - rituels    : les fiches de rituels
 //   - recettes   : les fiches de recettes (depuis la version 2)
+//   - suppressions : les « pierres tombales » (depuis la version 3)
 // Chaque enregistrement est un objet JavaScript identifié par son "id".
+//
+// SYNCHRONISATION (v3) :
+//   - chaque enregistrement porte "modifieLe" (millisecondes), mis à jour
+//     automatiquement par enregistrer() ;
+//   - chaque suppression laisse une pierre tombale { cle, magasin, id, supprimeLe }
+//     pour que l'autre appareil sache que la fiche a été supprimée (et ne la
+//     renvoie pas comme si elle était nouvelle).
 
 const DB_NOM = "nebula";
-const DB_VERSION = 2; // v1 : categories, objets, rituels · v2 : + recettes
+const DB_VERSION = 3; // v1 : categories, objets, rituels · v2 : + recettes · v3 : + suppressions
 
 let db = null; // la connexion à la base, remplie par ouvrirBase()
 
@@ -48,6 +56,11 @@ function ouvrirBase() {
 
       if (!existe("rituels")) base.createObjectStore("rituels", { keyPath: "id" });
       if (!existe("recettes")) base.createObjectStore("recettes", { keyPath: "id" });
+      // Clé "cle" = "objets:obj_123" (magasin + id)
+      if (!existe("suppressions")) base.createObjectStore("suppressions", { keyPath: "cle" });
+      // Les fiches existantes n'ont pas encore de date : elles comptent comme
+      // « très anciennes » (0). On ne les date PAS maintenant, sinon un appareil
+      // mis à jour plus tard écraserait les modifications faites ailleurs.
     };
 
     // Un autre onglet garde l'ancienne version ouverte : la mise à jour attend
@@ -85,13 +98,33 @@ function lireUn(magasin, id) {
   return executer(magasin, "readonly", (store) => store.get(id));
 }
 
-// put = ajoute si l'id n'existe pas, sinon remplace (création ET modification)
-function enregistrer(magasin, element) {
-  return executer(magasin, "readwrite", (store) => store.put(element));
+// Prévient la synchronisation (synchro.js) qu'une modification a eu lieu
+function signalerModification() {
+  if (typeof surModificationBase === "function") surModificationBase();
 }
 
+// put = ajoute si l'id n'existe pas, sinon remplace (création ET modification).
+// dater = false : on garde la date telle quelle (exemples, catégories par défaut) ;
+// ces écritures « techniques » ne doivent pas passer pour des modifications récentes.
+async function enregistrer(magasin, element, { dater = true } = {}) {
+  const aEcrire = dater ? { ...element, modifieLe: Date.now() } : element;
+  const resultat = await executer(magasin, "readwrite", (store) => store.put(aEcrire));
+  if (dater) signalerModification();
+  return resultat;
+}
+
+// Supprime ET laisse une pierre tombale, dans une seule transaction
 function supprimer(magasin, id) {
-  return executer(magasin, "readwrite", (store) => store.delete(id));
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([magasin, "suppressions"], "readwrite");
+    transaction.objectStore(magasin).delete(id);
+    transaction.objectStore("suppressions").put({ cle: `${magasin}:${id}`, magasin, id, supprimeLe: Date.now() });
+    transaction.oncomplete = () => {
+      signalerModification();
+      resolve();
+    };
+    transaction.onerror = () => reject(transaction.error);
+  });
 }
 
 // Génère un identifiant unique, ex. "obj_lq2k9x3f"
@@ -104,7 +137,7 @@ async function initialiserCategories() {
   const existantes = await lireTout("categories");
   if (existantes.length === 0) {
     for (const categorie of CATEGORIES_DEFAUT) {
-      await enregistrer("categories", categorie);
+      await enregistrer("categories", categorie, { dater: false });
     }
   }
 }

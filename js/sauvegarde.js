@@ -7,9 +7,12 @@
 // - Service worker (sw.js) : l'app fonctionne sans Internet
 // - Bouton « Installer l'app » : icône sur le bureau / l'écran d'accueil
 //
-// Le même format de fichier servira à la synchronisation GitHub (étape suivante).
+// Le même format de fichier sert à la synchronisation GitHub (synchro.js).
+//
+// Format 1 : magasins + ordre des groupes.
+// Format 2 : + suppressions (pierres tombales) + date de l'ordre des groupes.
 
-const FORMAT_SAUVEGARDE = 1;
+const FORMAT_SAUVEGARDE = 2;
 const MAGASINS_SAUVEGARDES = ["categories", "objets", "rituels", "recettes"];
 const CLE_DERNIER_EXPORT = "nebula.dernierExport";
 
@@ -22,7 +25,8 @@ async function exporterDonnees() {
     format: FORMAT_SAUVEGARDE,
     exporteLe: new Date().toISOString(),
     magasins,
-    reglages: { ordreGroupes: lireOrdreGroupes() },
+    suppressions: await lireTout("suppressions"),
+    reglages: { ordreGroupes: lireOrdreGroupes(), ordreGroupesModifieLe: lireDateOrdreGroupes() },
   };
 }
 
@@ -61,6 +65,10 @@ function verifierSauvegarde(donnees) {
       return `Fichier abîmé (partie « ${nom} »).`;
     }
   }
+  const suppressions = donnees.suppressions ?? [];
+  if (!Array.isArray(suppressions) || suppressions.some((s) => !s || typeof s.cle !== "string")) {
+    return "Fichier abîmé (partie « suppressions »).";
+  }
   return null;
 }
 
@@ -69,12 +77,15 @@ function verifierSauvegarde(donnees) {
 // (comme une recette de production validée d'un bloc).
 function remplacerBase(donnees) {
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction(MAGASINS_SAUVEGARDES, "readwrite");
+    const transaction = db.transaction([...MAGASINS_SAUVEGARDES, "suppressions"], "readwrite");
     for (const nom of MAGASINS_SAUVEGARDES) {
       const store = transaction.objectStore(nom);
       store.clear();
       for (const enregistrement of donnees.magasins[nom] ?? []) store.put(enregistrement);
     }
+    const suppressions = transaction.objectStore("suppressions");
+    suppressions.clear();
+    for (const s of donnees.suppressions ?? []) suppressions.put(s);
     transaction.oncomplete = resolve;
     transaction.onerror = () => reject(transaction.error);
     transaction.onabort = () => reject(transaction.error ?? new Error("Import annulé"));
@@ -102,7 +113,8 @@ async function importerFichier(fichier) {
     `• ${(m.objets ?? []).length} éléments · ${(m.rituels ?? []).length} rituels · ` +
     `${(m.recettes ?? []).length} recettes · ${(m.categories ?? []).length} catégories\n\n` +
     "⚠ Toutes les données actuelles de cet appareil seront REMPLACÉES.\n" +
-    "Conseil : cliquez d'abord sur « Exporter » pour garder une copie."
+    "Conseil : cliquez d'abord sur « Exporter » pour garder une copie." +
+    (synchroConfiguree() ? "\n\nSynchronisation active : les fiches plus récentes sur GitHub seront ensuite conservées." : "")
   );
   if (!ok) return;
 
@@ -112,8 +124,11 @@ async function importerFichier(fichier) {
     alert("L'import a échoué, aucune donnée n'a été modifiée.\n" + e.message);
     return;
   }
-  if (Array.isArray(donnees.reglages?.ordreGroupes)) enregistrerOrdreGroupes(donnees.reglages.ordreGroupes);
+  if (Array.isArray(donnees.reglages?.ordreGroupes)) {
+    enregistrerOrdreGroupes(donnees.reglages.ordreGroupes, Number(donnees.reglages.ordreGroupesModifieLe) || 0);
+  }
   try { localStorage.setItem(CLE_EXEMPLES, "importé"); } catch { /* les exemples ne seront pas réimportés */ }
+  signalerModification(); // la synchro (si active) fusionne avec GitHub
 
   historique.length = 0;
   await naviguer("rituels");
